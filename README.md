@@ -1,7 +1,12 @@
 # Gros Druides Solides
-Party Game multijoueur en ligne de 2 à 4 joueurs, développé sur Unreal Engine 5.  
+Party Game multijoueur en ligne de 2 à 4 joueurs, développé sur Unreal Engine 5.
 Inspiré des jeux MageQuit et Warlock.
 > Projet programmé en solo - je suis l'unique programmeur du jeu.
+
+[▶ Voir la démonstration](https://youtu.be/I_6DkkSAsvM)
+[![Démonstration](https://img.youtube.com/vi/I_6DkkSAsvM/maxresdefault.jpg)](https://youtu.be/I_6DkkSAsvM)
+
+
 ## Présentation rapide
 -  Genre: Party Game, Battle Arena
 -  Joueurs: 2 à 4 en ligne
