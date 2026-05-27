@@ -1,56 +1,94 @@
 [French Version](https://github.com/Lefleur05/GrosDruidesSolides/edit/main/README_FR.md)
+
 # Gros Druides Solides
-Party Game multijoueur en ligne de 2 à 4 joueurs, développé sur Unreal Engine 5.
-Inspiré des jeux MageQuit et Warlock.
-> Projet programmé en solo - je suis l'unique programmeur du jeu.
 
-[▶ Voir la démonstration](https://youtu.be/I_6DkkSAsvM)
-[![Démonstration](https://img.youtube.com/vi/I_6DkkSAsvM/maxresdefault.jpg)](https://youtu.be/I_6DkkSAsvM)
+Online multiplayer party game for 2 to 4 players, developed with Unreal Engine 5.  
+Inspired by the games *MageQuit* and *Warlock*.
 
+> Solo-programmed project — I am the sole programmer of the game.
 
-## Présentation rapide
--  Genre: Party Game, Battle Arena
--  Joueurs: 2 à 4 en ligne
--  Moteur: Unreal Engine 5.6.1 (C++ et Blueprint)
--  Durée d'une partie: 3 à 10 minutes
-Les joueurs incarnent des druides gaulois farfelus dans un univers inspiré d'Astérix. Le premier à atteindre 3 points de victoire gagne.
-Entre chaque manche de combat, une phase de Carrousel (inspirée de TFT) permet à chaque joueur de choisir un objet qui modifie ses sorts
-— générant des builds différents à chaque partie.
-## Ce que j'ai développé
-### Multijoueur
-- Un système de session permettant de rejoindre des joueurs directement par le jeu via un menu Find Session.
-- Mais aussi la possibilité de rejoindre via des amis Steam grâce aux invitations Steam.
-### Caméra partagée dynamique
-- Caméra commune qui bouge et s'éloigne pour constamment garder tous les joueurs en vue.
-- Ignore les joueurs morts.
-### Système de projectiles modulaire
-- Chaque sort est entièrement piloté par une structure de données `FItem` (dégâts, vitesse, portée, cône de tir, knockback, explosion, annulation de sorts…)
-- Les objets ramassés s'additionnent directement à cette structure afin que dès que le joueur récupère un item il modifie directement le sort sur lequel il fait effet.
-### Gameplay et Character
-- Déplacement ZQSD/Joystick gauche qui s'adapte à la caméra commune.
-- Dash avec un cooldown.
-- 4 sorts distincts avec des comportements de base uniques à chacun, entièrement modifiables grâce aux items.
-  - Knockback qui repousse le joueur touché par le projectile.
-  - Explosion qui fait des dégâts au joueur dans la zone et si activée knockback tous les joueurs dans la zone.
-- Le tout est modifiable par les items : vitesse du joueur, cooldown du dash, des sorts, puissance du knockback, taille de l'explosion, dégâts du projectile, dégâts de l'explosion...
-### Système de Carrousel et d'objets
-- Les items ont 4 tiers de rareté/puissance.
-- Chaque item a une probabilité d'être un certain tier :
-  - T1 : 60%
-  - T2 : 25%
-  - T3 : 10%
-  - T4 : 5%
-- Ordre de priorité inversé au classement : le leader attend plus longtemps pour choisir.
-- Les objets se cumulent et persistent entre les manches.
-### Arènes et GPE
-- Instant Kill Zone -> le joueur meurt immédiatement quand il entre en contact avec.
-- Drain Zone -> inflige des dégâts toutes les X secondes.
-- Blades -> Lames rotatives infligeant X dégâts toutes les X secondes, mais avec ces lames qui ont des collisions repoussent les joueurs qui entrent en contact.
-  > Nous avons gardé la collision des lames pour repousser le joueur car si nous faisions un simple `Launch Character` cela rendait incohérent avec le visuel.
+[▶ Watch the demo](https://youtu.be/I_6DkkSAsvM)
+
+[![Demo](https://img.youtube.com/vi/I_6DkkSAsvM/maxresdefault.jpg)](https://youtu.be/I_6DkkSAsvM)
+
+---
+
+## Quick Overview
+
+- **Genre:** Party Game, Battle Arena  
+- **Players:** 2 to 4 online  
+- **Engine:** Unreal Engine 5.6.1 (C++ and Blueprint)  
+- **Match Duration:** 3 to 10 minutes  
+
+Players take on the role of eccentric Gaulish druids in a universe inspired by *Astérix*.  
+The first player to reach 3 victory points wins the game.
+
+Between each combat round, a **Carousel phase** (inspired by TFT) allows players to choose an item that modifies their spells — creating different builds every match.
+
+---
+
+## What I Developed
+
+### Multiplayer
+
+- A session system allowing players to join directly through the game using a **Find Session** menu.
+- Ability to join friends through **Steam invitations**.
+
+### Dynamic Shared Camera
+
+- A shared camera that moves and zooms out dynamically to constantly keep all players visible.
+- Dead players are ignored by the camera system.
+
+### Modular Projectile System
+
+- Each spell is entirely driven by an `FItem` data structure (damage, speed, range, cone angle, knockback, explosion, spell cancelation, etc.).
+- Collected items directly modify this structure, meaning that as soon as a player picks up an item, it instantly changes the affected spell.
+
+### Gameplay & Character
+
+- WASD / Left Stick movement adapted to the shared camera orientation.
+- Dash system with cooldown.
+- 4 distinct spells, each with unique base behaviors, fully customizable through items.
+  - Knockback that pushes back players hit by projectiles.
+  - Explosion effects dealing area damage and optionally applying knockback to all players inside the zone.
+- Everything can be modified through items:
+  - Player speed
+  - Dash cooldown
+  - Spell cooldowns
+  - Knockback power
+  - Explosion size
+  - Projectile damage
+  - Explosion damage
+
+### Carousel & Item System
+
+- Items are divided into 4 rarity/power tiers.
+- Each item has a probability of appearing in a specific tier:
+  - T1: 60%
+  - T2: 25%
+  - T3: 10%
+  - T4: 5%
+- Reverse pick priority based on ranking: the leading player has to wait longer before choosing.
+- Items stack and persist between rounds.
+
+### Arenas & Environmental Gameplay Elements
+
+- **Instant Kill Zone** → the player dies immediately upon contact.
+- **Drain Zone** → deals damage every X seconds.
+- **Blades** → rotating blades dealing X damage every X seconds, while their collisions physically push players away on contact.
+
+> We kept physical collision on the blades because using a simple `Launch Character` created inconsistencies with the visual feedback.
+
+---
+
 ## Team
-**The team currently working on this project**  
-**Programmeur**
+
+**The team currently working on this project**
+
+### Programmer
+
 - [@Lefleur05](https://github.com/Lefleur05)
 
-**Game Designer**
+### Game Designer
+
 - [@AlixLFL](https://github.com/AlixLFL)
