@@ -1,4 +1,4 @@
-[Engliesh Version](https://github.com/Lefleur05/GrosDruidesSolides/blob/main/README.md)
+[French Version](https://github.com/Lefleur05/GrosDruidesSolides/edit/main/README_FR)
 # Gros Druides Solides
 Party Game multijoueur en ligne de 2 à 4 joueurs, développé sur Unreal Engine 5.
 Inspiré des jeux MageQuit et Warlock.
