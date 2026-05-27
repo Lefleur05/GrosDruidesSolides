@@ -1,4 +1,4 @@
-[French Version](https://github.com/Lefleur05/GrosDruidesSolides/edit/main/README_FR.md)
+[French Version](https://github.com/Lefleur05/GrosDruidesSolides/blob/main/README_FR.md)
 
 # Gros Druides Solides
 
