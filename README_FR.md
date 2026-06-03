@@ -13,8 +13,8 @@ Inspiré des jeux MageQuit et Warlock.
 -  Joueurs: 2 à 4 en ligne
 -  Moteur: Unreal Engine 5.6.1 (C++ et Blueprint)
 -  Durée d'une partie: 3 à 10 minutes
-Les joueurs incarnent des druides gaulois farfelus dans un univers inspiré d'Astérix. Le premier à atteindre 3 points de victoire gagne.
-Entre chaque manche de combat, une phase de Carrousel (inspirée de TFT) permet à chaque joueur de choisir un objet qui modifie ses sorts
+
+Les joueurs incarnent des druides gaulois farfelus dans un univers inspiré d'Astérix. Le premier à atteindre 3 points de victoire gagne.Entre chaque manche de combat, une phase de Carrousel (inspirée de TFT) permet à chaque joueur de choisir un objet qui modifie ses sorts
 — générant des builds différents à chaque partie.
 ## Ce que j'ai développé
 ### Multijoueur
