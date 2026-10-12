@@ -39,6 +39,7 @@ void ABattleGameModeBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	CLEAR_TIMER(timerForStartBattle);
 	CLEAR_TIMER(timerEndBattle);
 	CLEAR_TIMER(startBattleTimer);
+	CLEAR_TIMER(timerBackToLobby);
 }
 
 void ABattleGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _playerController, TObjectPtr<APlayerCharacter> _player)
@@ -49,12 +50,12 @@ void ABattleGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _playerCon
 	if (TObjectPtr<UInfoPlayerGameInstance> _gameInstance = GetGameInstance<UInfoPlayerGameInstance>())
 	{
 		_allplayerconnected = allPlayers.Num() == _gameInstance->GetLobbyPlayerCount();
-		LOG("All Player Connected = " + FString::FromInt(allPlayers.Num()) + " == " + FString::FromInt(_gameInstance->GetLobbyPlayerCount()));
+		//LOG("All Player Connected = " + FString::FromInt(allPlayers.Num()) + " == " + FString::FromInt(_gameInstance->GetLobbyPlayerCount()));
 	}
 	if (_allplayerconnected && WORLD && HasAuthority())
 	{
 		if (TObjectPtr<UInfoPlayerGameInstance> _gameInstance = GetGameInstance<UInfoPlayerGameInstance>())
-			spawnPoint = _gameInstance->FindLevelInfoWithLevelName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true)).allSpawnPoint;
+			allSpawnPoint = _gameInstance->FindLevelInfoWithLevelName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true)).allSpawnPoint;
 
 		Init();
 		StartBattle();
@@ -78,15 +79,9 @@ void ABattleGameModeBase::Init()
 			_player->onDeath.RemoveDynamic(this, &ABattleGameModeBase::DeathPlayer);
 			_player->onDeath.AddDynamic(this, &ABattleGameModeBase::DeathPlayer);
 			//pointPerPlayer.Add(allPlayers[_i], 0);
-
-			//if (allSpawnPoint.Num() >= 1)
-			//{
-			//	int _y = _i % allSpawnPoint.Num();
-			//	allPlayers[_i]->SetActorLocation(allSpawnPoint[_y]);
-
-			//}
 		}
 	}
+	SetPlayerLocationAndRotation();
 }
 
 void ABattleGameModeBase::StartBattle()
@@ -103,11 +98,10 @@ void ABattleGameModeBase::StartBattle()
 			_player->SetCanDash(false);
 			if (_player->GetSpellComponent())
 				_player->GetSpellComponent()->SetCanShoot(false);
-
-			if(spawnPoint.Num() > 0)
-				allPlayers[_i]->SetActorLocation(spawnPoint[_i % spawnPoint.Num()]);
+			_player->Client_StartCountDownUI(timeForStartBattle);
 		}
 	}
+	SetPlayerLocationAndRotation();
 	timeStartCurrentLevel = WORLD->GetTimeSeconds();
 
 	TIMER(this, timerForStartBattle, FreeForBattle(), timeForStartBattle);
@@ -130,7 +124,91 @@ void ABattleGameModeBase::FreeForBattle()
 	}
 }
 
+int ABattleGameModeBase::GetCountPlayerAlive(TObjectPtr<APlayerCharacter>& _lastPlayerStanding)
+{
+	int _countPlayerAlive = 0;
+	const int _count = allPlayers.Num();
+	
+	for (int _i = 0; _i < _count; _i++)
+	{
+		if (IsValid(allPlayers[_i]) && !allPlayers[_i]->GetIsDead())
+		{
+			_countPlayerAlive++;
+			_lastPlayerStanding = allPlayers[_i];
+		}
+	}
+	return _countPlayerAlive;
+}
+
+bool ABattleGameModeBase::AddPlayerPoint(TObjectPtr<APlayerCharacter> _lastPlayerStanding)
+{
+	TObjectPtr<UInfoPlayerGameInstance> _gameInstance = GetGameInstance<UInfoPlayerGameInstance>();
+	TObjectPtr<APlayerState> _playerState = _lastPlayerStanding ? _lastPlayerStanding->GetPlayerState() : nullptr;
+
+	if (!_gameInstance || !_lastPlayerStanding || !_playerState)
+		return false;
+	FString _playerName = _playerState->GetUniqueId().ToString();
+	if (_playerName.IsEmpty())
+		return false;
+
+	TMap<FString, int> _point = _gameInstance->GetPointPerPlayer();
+	//LOG_CUSTOM(_playerName + (_point.Contains(_playerName) ? " is containe " : " is not containe "), Blue);
+
+	if (! _point.Contains(_playerName))
+	{
+		LOG_ERROR("Round Winner by Player " + _playerName + " but not found in TMap ");
+		return false;
+	}
+
+	_point[_playerName] += 1;
+	_gameInstance->SetPointPerPlayer(_point);
+
+	if (TObjectPtr<AInfoPlayerState> _infoPlayerState = Cast<AInfoPlayerState>(_playerState))
+		_infoPlayerState->SetPoint(_point[_playerName]);
+
+	LOG_CUSTOM("Round Winner Player Name => " + _playerName + " Count Point => " + FString::FromInt(_point[_playerName]), Emerald);
+
+	if (_point[_playerName] >= pointForWin)
+	{
+		LOG_CUSTOM(_lastPlayerStanding.GetName() + " Win the game", Emerald);
+		return true;
+	}
+	return false;
+}
+
 void ABattleGameModeBase::DeathPlayer(APlayerCharacter* _player)
+{
+	if (roundEnded)return;
+
+	TObjectPtr<APlayerCharacter> _lastPlayerStanding = nullptr;
+	int _countPlayerAlive = GetCountPlayerAlive(_lastPlayerStanding);
+	
+	//LOG("Count Player alive => "+ FString::FromInt(_countPlayerAlive));
+
+	if (_countPlayerAlive == 0) //the last ones killed each other
+	{
+		roundEnded = true;
+		CLEAR_TIMER(timerBackToLobby);
+		TIMER(this, timerEndBattle, EndBattle(), 1.0f);
+		return;
+	}
+	if (_countPlayerAlive != 1)return; //There are other players still in the game
+
+	roundEnded = true;
+
+	bool _gameWin = AddPlayerPoint(_lastPlayerStanding);
+		
+	if (_gameWin)
+	{
+		TIMER(this, timerBackToLobby, BackToLobby(), 1.0f);
+	}
+	else
+	{
+		TIMER(this, timerEndBattle, EndBattle(), 1.0f);
+	}
+}
+
+/*void ABattleGameModeBase::DeathPlayer(APlayerCharacter* _player)
 {
 	if (roundEnded)return;
 	int _countPlayerAlive = 0;
@@ -165,7 +243,7 @@ void ABattleGameModeBase::DeathPlayer(APlayerCharacter* _player)
 			return;
 		}
 		FString _playerName = _lastPlayerStanding->GetPlayerState()->GetUniqueId().ToString();
-		if(_playerName.IsEmpty())
+		if (_playerName.IsEmpty())
 		{
 			TIMER(this, timerEndBattle, EndBattle(), 1.0f);
 			return;
@@ -180,7 +258,7 @@ void ABattleGameModeBase::DeathPlayer(APlayerCharacter* _player)
 			_point[_playerName] += 1;
 			_gameInstance->SetPointPerPlayer(_point);
 
-			LOG("Round Winner Player Name => " + _playerName  + " Cout Point => " + FString::FromInt(_point[_playerName]));
+			LOG_CUSTOM("Round Winner Player Name => " + _playerName + " Cout Point => " + FString::FromInt(_point[_playerName]), Emerald);
 
 			if (_point[_playerName] >= pointForWin)
 			{
@@ -195,7 +273,7 @@ void ABattleGameModeBase::DeathPlayer(APlayerCharacter* _player)
 		}
 	}
 	TIMER(this, timerEndBattle, EndBattle(), 1.0f);
-}
+}*/
 
 void ABattleGameModeBase::EndBattle()
 {
@@ -218,26 +296,48 @@ void ABattleGameModeBase::EndBattle()
 		}
 	}
 
-	SwitchToCarrousel();
+	if (timeBeforeSwitch >= 0.2f)
+	{
+		TIMER(this, timerSwitchLevel, SwitchToCarrousel(), timeBeforeSwitch);
+		StartCountDown(timeBeforeSwitch);
+	}
+	else
+	{
+		SwitchToCarrousel();
+	}
 }
 
 void ABattleGameModeBase::BackToLobby()
 {
-	LOG("Server Travel to => LVL_Lobby");
-	WORLD->ServerTravel("LVL_Lobby?game=/Game/Blueprint/GameMode/BP_LobbyGameModeBase.BP_LobbyGameModeBase_C");
+	TObjectPtr<UInfoPlayerGameInstance> _gameInstance = GetGameInstance<UInfoPlayerGameInstance>();
+	if (!_gameInstance)
+	{
+		LOG_ERROR("SwitchToCarrousel: GameInstance invalide");
+		return;
+	}
+
+	LOG_CUSTOM("Server Travel to => LVL_TestLobby", Emerald);
+	WORLD->ServerTravel(_gameInstance->GoToLobby() + "?game=/Game/Blueprint/GameMode/BP_CarrouselGameModeBase.BP_CarrouselGameModeBase_C");
+	//WORLD->ServerTravel("LVL_TestLobby?game=/Game/Blueprint/GameMode/BP_LobbyGameModeBase.BP_LobbyGameModeBase_C");
 }
 
 void ABattleGameModeBase::SwitchToCarrousel()
 {
 	TObjectPtr<UInfoPlayerGameInstance> _gameInstance = GetGameInstance<UInfoPlayerGameInstance>();
-	if (!_gameInstance)return;
-	// If carrousel is not valid the game not started
-	if (_gameInstance->GetCarrouselMap().map.IsEmpty())
+	if (!_gameInstance) 
 	{
+		LOG_ERROR("SwitchToCarrousel: GameInstance invalide");
+		return;
+	}
+	// If carrousel is not valid the game not started
+	FLevelInfo _carrousel = _gameInstance->GetCarrouselMap();
+	if (_carrousel.map.IsEmpty())
+	{
+		LOG_ERROR("GetCarrouselMap is Empty: GameInstance invalide");
 		BackToLobby();
 		return;
 	}
 
-	LOG_CUSTOM("Server Travel to => " + _gameInstance->GetCarrouselMap().map, Black);
+	LOG_CUSTOM("Server Travel to => " + _gameInstance->GetCarrouselMap().map, Emerald);
 	WORLD->ServerTravel(_gameInstance->GetCarrouselMap().map + "?game=/Game/Blueprint/GameMode/BP_CarrouselGameModeBase.BP_CarrouselGameModeBase_C");
 }

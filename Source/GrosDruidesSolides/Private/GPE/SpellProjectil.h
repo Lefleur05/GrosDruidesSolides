@@ -7,7 +7,8 @@
 #include "ItemData/FItem.h"
 #include "SpellProjectil.generated.h"
 
-class USphereComponent;
+//class USphereComponent;
+class UBoxComponent;
 class UProjectileMovementComponent;
 class APlayerCharacter;
 class UNiagaraSystem;
@@ -17,13 +18,13 @@ class ASpellProjectil : public AActor
 {
 	GENERATED_BODY()
 protected:
-	UPROPERTY(EditAnywhere) TObjectPtr<USphereComponent> collision = nullptr;
+	UPROPERTY(EditAnywhere) TObjectPtr<UBoxComponent> collision = nullptr;
 	UPROPERTY(EditAnywhere) TObjectPtr<UStaticMeshComponent> mesh = nullptr;
 	UPROPERTY(EditAnywhere) TObjectPtr<UProjectileMovementComponent> movement = nullptr;
 
 	UPROPERTY(EditAnywhere) TObjectPtr<APlayerCharacter> ownerCaster = nullptr;
 
-	//UPROPERTY(EditAnywhere) TObjectPtr<UNiagaraSystem> explosionFX = nullptr;
+	UPROPERTY(EditAnywhere) TObjectPtr<UNiagaraSystem> explosionFX = nullptr;
 
 	UPROPERTY() bool kill =false;
 
@@ -42,7 +43,7 @@ protected:
 
 	UPROPERTY(Editanywhere) FVector SpawnLocation = FVector(0.0f);
 public:
-	FORCEINLINE TObjectPtr<USphereComponent> GetCollision() { return collision; }
+	FORCEINLINE TObjectPtr<UBoxComponent> GetCollision() { return collision; }
 	FORCEINLINE TObjectPtr<UProjectileMovementComponent> GetProjectilMovement() { return movement; }
 	FORCEINLINE TObjectPtr<APlayerCharacter> GetOwnerCaster() { return ownerCaster;}
 
@@ -68,6 +69,7 @@ protected:
 	void Knockback(TObjectPtr<APlayerCharacter> _player, bool _isExplosionKnockback = false);	
 
 public:
+	UFUNCTION(NetMulticast, Reliable) void Multi_InitProjectile(FVector_NetQuantize _spawnLoc, FVector_NetQuantize100 _initialVelocity);
 	void SetStatWithItem(FItem _item);
 
 };

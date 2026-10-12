@@ -40,7 +40,7 @@ void AMultyplayerCamera::BeginPlay()
 void AMultyplayerCamera::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (setHasViewTarget)
+	/*if (setHasViewTarget)
 		WORLD->GetFirstPlayerController()->SetViewTarget(this);
 	if (HasAuthority())
 	{
@@ -64,7 +64,7 @@ void AMultyplayerCamera::Tick(float DeltaTime)
 		
 		CameraLocationWithAverage();
 		CameraZoom();
-	}
+	}*/
 	
 }
 

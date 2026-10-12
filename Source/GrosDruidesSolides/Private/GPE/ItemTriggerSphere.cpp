@@ -9,6 +9,8 @@
 #include "Components/ShapeComponent.h"
 #include "DataAsset/AllItemsDataAsset.h"
 #include <Net/UnrealNetwork.h>
+#include "GameAnalytics.h"
+#include "GameAnalyticsModule.h"
 
 AItemTriggerSphere::AItemTriggerSphere()
 {
@@ -28,7 +30,14 @@ void AItemTriggerSphere::BeginPlay()
 		GetCollisionComponent()->OnComponentBeginOverlap.AddDynamic(this, &AItemTriggerSphere::OnOverlapBegin);
 	}
 
-	UpdateItem();
+	
+
+	if (HasAuthority())
+		UpdateItem();
+	else
+		OnRep_Item();
+
+
 }
 
 void AItemTriggerSphere::Tick(float DeltaTime)
@@ -40,7 +49,7 @@ void AItemTriggerSphere::Tick(float DeltaTime)
 void AItemTriggerSphere::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(AItemTriggerSphere, item);
+	DOREPLIFETIME_CONDITION_NOTIFY(AItemTriggerSphere, item, COND_None,REPNOTIFY_Always);
 }
 
 void AItemTriggerSphere::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -54,29 +63,60 @@ void AItemTriggerSphere::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAc
 
 	if (!_canTakeItem)return;
 
-	if (HasAuthority())
-		Multi_AddItemToPlayerDetected(_player);
-	else
-		Server_AddItemToPlayerDetected(_player);
+	AddItemToPlayerDetected(_player);
 }
 
 void AItemTriggerSphere::OnRep_Item()
 {
-	LOG_CUSTOM("Rep" + item.itemName, Silver);
-	if (item.flipbook)
-		flipbook->SetFlipbook(item.flipbook);
-	if (item.sprite)
-		spriteComp->SetSprite(item.sprite);
+	//LOG_CUSTOM("Rep" + item.itemName, Silver);
+	UPaperSprite* _sprite = item.sprite.IsValid() ? item.sprite.Get(): item.sprite.LoadSynchronous();
+
+	UPaperFlipbook* _flipbook = item.flipbook.IsValid()	? item.flipbook.Get(): item.flipbook.LoadSynchronous();
+
+	//LOG_CUSTOM("OnRep_Item name=" + item.itemName + " sprite = "+ (_sprite ?"VALID" : "NULL") + " flipbook =" + (_flipbook ? "VALID" : "NULL"), Purple);
+	if (_sprite) spriteComp->SetSprite(_sprite);
+	if (_flipbook) flipbook->SetFlipbook(_flipbook);
+
 	onUpdateItem.Broadcast(item);
+}
+
+void AItemTriggerSphere::AddItemToPlayerDetected(TObjectPtr<APlayerCharacter> _player)
+{
+	_player->AddItem(item);
+	Destroy();
+
+	if (HasAuthority())
+	{
+		TObjectPtr<UGameAnalytics> _gameAnalytics = FGameAnalyticsModule::Get().GetInstance();
+		_gameAnalytics->AddDesignEvent(
+			FString::Printf(TEXT("carrousel:item_pris:%s"), *(item.itemName == "Fléche" ? "Fleche" : item.itemName))
+		);
+	}
+	Multi_AddItemToPlayerDetected(_player);
 }
 
 void AItemTriggerSphere::UpdateItem()
 {
-	if (item.flipbook)
-		flipbook->SetFlipbook(item.flipbook);
-	if (item.sprite)
-		spriteComp->SetSprite(item.sprite);
+	UPaperSprite* _sprite = item.sprite.IsValid()
+		? item.sprite.Get()
+		: item.sprite.LoadSynchronous();
+
+	UPaperFlipbook* _flipbook = item.flipbook.IsValid()
+		? item.flipbook.Get()
+		: item.flipbook.LoadSynchronous();
+
+	if (_sprite) spriteComp->SetSprite(_sprite);
+	if (_flipbook) flipbook->SetFlipbook(_flipbook);
+
 	onUpdateItem.Broadcast(item);
+
+	if (HasAuthority())
+	{
+		TObjectPtr<UGameAnalytics> _gameAnalytics = FGameAnalyticsModule::Get().GetInstance();
+		_gameAnalytics->AddDesignEvent(
+			FString::Printf(TEXT("carrousel:item_apparu:%s"), *(item.itemName == "Fléche" ? "Fleche" : item.itemName))
+		);
+	}
 }
 
 void AItemTriggerSphere::OrientToCamera()
@@ -100,13 +140,7 @@ void AItemTriggerSphere::OrientToCamera()
 	}
 }
 
-void AItemTriggerSphere::Server_AddItemToPlayerDetected_Implementation(APlayerCharacter* _player)
-{
-	Multi_AddItemToPlayerDetected(_player);
-}
-
 void AItemTriggerSphere::Multi_AddItemToPlayerDetected_Implementation(APlayerCharacter* _player)
 {
-	_player->AddItem(item);
-	Destroy();
+	
 }

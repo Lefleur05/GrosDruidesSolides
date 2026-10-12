@@ -68,6 +68,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Session")
 	TArray<FServerInfo> foundServers;
 
+	TOptional<FOnlineSessionSearchResult> pendingInviteResult;
+
 	FString pendingLevel = "";
 
 	/* Subystsem Life Cycle */

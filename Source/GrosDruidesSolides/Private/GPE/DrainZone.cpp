@@ -64,10 +64,11 @@ void ADrainZone::Drain()
 	if (!HasAuthority())return;
 
 	TArray<TObjectPtr<APlayerCharacter>> _toRemove;
+	TArray<TObjectPtr<APlayerCharacter>> _tempPlayers = playerInZone.Array();
 
-	for (TObjectPtr<APlayerCharacter> _player : playerInZone)
+	for (TObjectPtr<APlayerCharacter> _player : _tempPlayers)
 	{
-		if (!_player)
+		if (!IsValid(_player))
 		{
 			_toRemove.Add(_player);
 			continue;

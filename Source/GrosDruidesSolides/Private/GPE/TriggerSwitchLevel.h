@@ -18,6 +18,8 @@ class ATriggerSwitchLevel : public AActor
 	UPROPERTY(EditAnywhere) TArray<TObjectPtr<APlayerCharacter>> listPlayerContain = TArray<TObjectPtr<APlayerCharacter>>();
 	UPROPERTY(EditAnywhere) FString targetLevel;
 
+	UPROPERTY(EditAnywhere) float minPlayerForStart = 2.0f;
+
 	UPROPERTY(EditAnywhere) bool clearIteam = true;
 
 	UPROPERTY(EditAnywhere) FTimerHandle timerStartGame;
@@ -33,4 +35,5 @@ protected:
 
 	void StartGame();
 	void ClearIteam();
+	void SetCountDown(float _countDown);
 };

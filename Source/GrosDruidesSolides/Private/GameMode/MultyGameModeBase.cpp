@@ -13,6 +13,8 @@ void AMultyGameModeBase::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
 	
+	SelectPlayerColor(NewPlayer);
+
 	if (AMultyPlayerController* _pc = Cast<AMultyPlayerController>(NewPlayer))
 	{
 		//_pc->ClientSetupEnhancedInput();
@@ -51,6 +53,12 @@ void AMultyGameModeBase::Logout(AController* Exiting)
 				allPlayers.RemoveAt(_i);
 		}
 	}
+
+	TObjectPtr<AInfoPlayerState> _playerState = Exiting->GetPlayerState<AInfoPlayerState>();
+	if (!_playerState)return;
+
+	playerColor.Remove(_playerState->GetPlayerColor());
+	
 }
 
 void AMultyGameModeBase::RequestRespawn(AController* _controller)
@@ -77,7 +85,6 @@ void AMultyGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _playerCont
 	{
 		if(_playerTemp)
 		{
-			LOG(_playerTemp.GetName() + " => set PlayerList " + FString::FromInt(allPlayers.Num()));
 			if (_playerTemp->GetCameraCustom())
 			{
 				LOG(_playerTemp.GetName() + " => set PlayerList " + FString::FromInt(allPlayers.Num()));
@@ -119,4 +126,67 @@ void AMultyGameModeBase::PostSeamlessTravel()
 	//		RestartPlayer(_playerController);
 	//	}
 	//}
+}
+
+void AMultyGameModeBase::SetPlayerLocationAndRotation()
+{
+	const int& _count = allPlayers.Num();
+	for (int _i = 0; _i < _count; _i++)
+	{
+		TObjectPtr<APlayerCharacter> _player = allPlayers[_i];
+		if (IsValid(_player))
+		{
+			if (allSpawnPoint.Num() >= 1.0f)
+			{
+				int _y = _i % allSpawnPoint.Num();
+				_player->SetActorLocation(allSpawnPoint[_y]);
+
+				FRotator _newRot = UKismetMathLibrary::FindLookAtRotation(allSpawnPoint[_y], FVector(0.0f));
+				FRotator _playerRot = _player->GetActorRotation();
+				_newRot = FRotator(_playerRot.Pitch, _newRot.Yaw, _playerRot.Roll);
+				//_player->SetActorRotation(_newRot);
+
+				_player->TeleportTo(allSpawnPoint[_y], _newRot);
+
+				//_player->GetCamera()->SetWorldRotation(_playerRot);
+			}
+		}
+	}
+}
+
+void AMultyGameModeBase::StartCountDown(float _countDown, bool _countDownImmediatlyStart)
+{
+	const int& _count = allPlayers.Num();
+	for (int _i = 0; _i < _count; _i++)
+	{
+		TObjectPtr<APlayerCharacter> _player = allPlayers[_i];
+		if (IsValid(_player))
+		{
+			_player->Client_StartCountDownUI(_countDown, _countDownImmediatlyStart);
+
+		}
+	}
+}
+
+void AMultyGameModeBase::SelectPlayerColor(TObjectPtr<APlayerController> _newPlayer)
+{
+	EPlayerColor _newColor = EPlayerColor::PC_NONE;
+
+	if (!playerColor.Contains(EPlayerColor::PC_BLUE))
+		_newColor = EPlayerColor::PC_BLUE;
+	else if (!playerColor.Contains(EPlayerColor::PC_RED))
+		_newColor = EPlayerColor::PC_RED;
+	else if (!playerColor.Contains(EPlayerColor::PC_GREEN))
+		_newColor = EPlayerColor::PC_GREEN;
+	else if (!playerColor.Contains(EPlayerColor::PC_YELLOW))
+		_newColor = EPlayerColor::PC_YELLOW;
+	//else
+		//LOG("PC_NONE Color");
+
+	TObjectPtr<AInfoPlayerState> _playerState = _newPlayer->GetPlayerState< AInfoPlayerState>();
+	if (!_playerState)return;
+
+	_playerState->SetPlayerColor(_newColor);
+	playerColor.Add(_newColor, _playerState);
+
 }

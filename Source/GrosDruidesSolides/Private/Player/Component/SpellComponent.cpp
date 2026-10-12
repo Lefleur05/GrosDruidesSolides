@@ -5,6 +5,7 @@
 #include "Net/UnrealNetwork.h"
 #include <Kismet/GameplayStatics.h>
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "GameFramework/GameStateBase.h"
 
 USpellComponent::USpellComponent()
 {
@@ -18,13 +19,19 @@ void USpellComponent::BeginPlay()
 	if (!player)
 	{
 		LOG_ERROR("No Player Owner");
+		return;
+	}
+	if (player->IsLocallyControlled())
+	{
+		TIMER_LOOP(this, updateServerTime, UpdateServerTime(), 0.0f, 0.05f);
 	}
 }
 
 void USpellComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
+	if (player && WORLD && player->HasAuthority())
+		worldSecond = WORLD->GetTimeSeconds();
 }
 
 void USpellComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -36,6 +43,15 @@ void USpellComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(USpellComponent, itemStatsSecondarySpell);
 	DOREPLIFETIME(USpellComponent, itemStatsShieldSpell);
 	DOREPLIFETIME(USpellComponent, itemStatsUltimateSpell);
+
+	DOREPLIFETIME(USpellComponent, worldSecond);
+
+	DOREPLIFETIME(USpellComponent, lastTimeShootPrimarySpell);
+	DOREPLIFETIME(USpellComponent, lastTimeShootSecondarySpell);
+	DOREPLIFETIME(USpellComponent, lastTimeShootShieldSpell);
+	DOREPLIFETIME(USpellComponent, lastTimeShootUltimateSpell);
+
+
 }
 
 void USpellComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -43,7 +59,7 @@ void USpellComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 	CLEAR_TIMER(castTimer);
 	CLEAR_TIMER(shootBurst);
-
+	CLEAR_TIMER(updateServerTime);
 }
 
 void USpellComponent::Server_SpawnSpell_Implementation(TSubclassOf<ASpellProjectil> _spellToSpawn, FItem _spellStats, FTransform _transform, APlayerCharacter* _ownerCaster)
@@ -144,6 +160,7 @@ void USpellComponent::SpawnSpell(TSubclassOf<ASpellProjectil> _spellToSpawn, FIt
 	_projectilSpawn->SetOwnerCaster(_ownerCaster);
 	_projectilSpawn->SetStatWithItem(_spellStats);
 	UGameplayStatics::FinishSpawningActor(_projectilSpawn, _transform);
+	_projectilSpawn->Multi_InitProjectile(_projectilSpawn->GetActorLocation(), _projectilSpawn->GetActorForwardVector() * _spellStats.projectilSpeed);
 	//_projectilSpawn->SetStatWithItem(_spellStats);
 }
 
@@ -198,6 +215,44 @@ TArray<float> USpellComponent::GetRandomAngleInCone(int _countAngle, float _cone
 		_randYaw.Add(_rand);
 	}
 	return _randYaw;
+}
+
+float USpellComponent::GetCooldownPercent(ESpellType _spellType)
+{
+	float _lastShot = 0.0f;
+	float _cooldown = 0.0f;
+
+	switch (_spellType)
+	{
+	case ESpellType::ST_MINOR_PROJECTILE:
+		_lastShot = lastTimeShootPrimarySpell;
+		_cooldown = itemStatsPrimarySpell.cooldown;
+		break;
+	case ESpellType::ST_SECONDARY_PROJECTILE:
+		_lastShot = lastTimeShootSecondarySpell;
+		_cooldown = itemStatsSecondarySpell.cooldown;
+		break;
+	case ESpellType::ST_SHIELD_PROJECTILE:
+		_lastShot = lastTimeShootShieldSpell;
+		_cooldown = itemStatsShieldSpell.cooldown;
+		break;
+	case ESpellType::ST_ULTIMATE_PROJECTILE:
+		_lastShot = lastTimeShootUltimateSpell;
+		_cooldown = itemStatsUltimateSpell.cooldown;
+		break;
+	default:
+		break;
+	}
+
+	return (serverTime - _lastShot) / _cooldown;
+}
+
+void USpellComponent::UpdateServerTime()
+{
+	if (!WORLD)return;
+	TObjectPtr<AGameStateBase> _gameState = WORLD->GetGameState();
+	if (!_gameState) return;
+	serverTime = _gameState->GetServerWorldTimeSeconds();
 }
 
 void USpellComponent::UpdateTriItem()
@@ -266,9 +321,10 @@ void USpellComponent::ShootSpell(TSubclassOf<ASpellProjectil> _spellProjectil, f
 void USpellComponent::ShootPrimarySpell()
 {
 	//if (!canShoot|| inShoot)return;
+	if (!player || player->GetIsInPauseMenu())return;
 	Server_RequestSpawnSpell(ESpellType::ST_MINOR_PROJECTILE);
 	//if (inShoot || !player ||!primarySpellProjectil)return;
-	//if ((WORLD->GetTimeSeconds() - lastTimeShootPrimarySpell) < itemStatsPrimarySpell.cooldown)return;
+	//if ((WORLD->GetTimeSeconds() - lastTimeShootPrimarySpell) <= itemStatsPrimarySpell.cooldown)return;
 	////inShoot = true;
 	////player->SetCanMove(false);
 	//if (itemStatsPrimarySpell.castTime == 0.0f)
@@ -282,18 +338,21 @@ void USpellComponent::ShootPrimarySpell()
 void USpellComponent::ShootSecondarySpell()
 {
 	//if (!canShoot || inShoot)return;
+	if (!player || player->GetIsInPauseMenu())return;
 	Server_RequestSpawnSpell(ESpellType::ST_SECONDARY_PROJECTILE);
 }
 
 void USpellComponent::ShootShieldSpell()
 {
 	//if (!canShoot || inShoot)return;
+	if (!player || player->GetIsInPauseMenu())return;
 	Server_RequestSpawnSpell(ESpellType::ST_SHIELD_PROJECTILE);
 }
 
 void USpellComponent::ShootUltimatedSpell()
 {
 	//if (!canShoot || inShoot)return;
+	if (!player || player->GetIsInPauseMenu())return;
 	Server_RequestSpawnSpell(ESpellType::ST_ULTIMATE_PROJECTILE);
 }
 

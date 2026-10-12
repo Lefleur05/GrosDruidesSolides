@@ -3,20 +3,23 @@
 
 #include "GPE/SpellProjectil.h"
 #include "Components/SphereComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Player/PlayerCharacter.h"
 #include "Utility.h"
 #include "GameFramework/CharacterMovementComponent.h"
-//#include "NiagaraFunctionLibrary.h"
-//#include "NiagaraSystem.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "NiagaraComponent.h"
+#include "GPE/CombatDummy.h"
 
 // Sets default values
 ASpellProjectil::ASpellProjectil()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	collision = CreateDefaultSubobject<USphereComponent>("collision");
+	collision = CreateDefaultSubobject<UBoxComponent>("collision");
 	RootComponent = collision;
 	mesh = CreateDefaultSubobject<UStaticMeshComponent>("mesh");
 	movement = CreateDefaultSubobject<UProjectileMovementComponent>("movement");
@@ -24,29 +27,25 @@ ASpellProjectil::ASpellProjectil()
 	mesh->SetupAttachment(RootComponent);
 
 	bReplicates = true;
-	SetReplicatingMovement(true);
-	movement->SetIsReplicated(true);
+	SetReplicatingMovement(false);
+	movement->SetIsReplicated(false);
 }
 
 // Called when the game starts or when spawned
 void ASpellProjectil::BeginPlay()
 {
 	Super::BeginPlay();
+	SpawnLocation = GetActorLocation();
 	if (HasAuthority())
 	{
-		SpawnLocation = GetActorLocation();
 		collision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		SpawnCollide();
 	}
 	else
 	{
 		collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		movement->Activate(true);
 	}
-
-	if (HasAuthority())
-		SpawnCollide();
-
-	
-
 }
 
 // Called every frame
@@ -107,20 +106,41 @@ void ASpellProjectil::Collide(TObjectPtr<AActor> _actor)
 	}
 
 	TObjectPtr<APlayerCharacter> _player = Cast<APlayerCharacter>(_actor);
-	if (!_player || _player->GetIsDead())return;
-	//LOG_CUSTOM("hasCollide _player", Silver);
-	hasCollide = true;
+	if (_player && !_player->GetIsDead())
+	{
+		//LOG_CUSTOM("hasCollide _player", Silver);
+		hasCollide = true;
 
-	movement->StopMovementImmediately();
+		movement->StopMovementImmediately();
 
-	Server_SetLifeSpan(DELTATIME);
+		Server_SetLifeSpan(DELTATIME);
 
-	_player->AddLife(-damage);
-	//LOG_SERVER_CLIENT(" Damage Dealt => " + FString::SanitizeFloat(-damage));
-	if (explosionSize > 0.0f)
-		Explosion();
-	else if (knockback > 0.0f)
-		Knockback(_player);
+		_player->AddLife(-damage);
+		//LOG_SERVER_CLIENT(" Damage Dealt => " + FString::SanitizeFloat(-damage));
+		if (explosionSize > 0.0f)
+			Explosion();
+		else if (knockback > 0.0f)
+			Knockback(_player);
+	}
+
+	TObjectPtr<ACombatDummy> _dummy = Cast<ACombatDummy>(_actor);
+	if (_dummy)
+	{
+		//LOG_CUSTOM("hasCollide _player", Silver);
+		hasCollide = true;
+
+		movement->StopMovementImmediately();
+
+		Server_SetLifeSpan(DELTATIME);
+
+		_dummy->AddLife(-damage);
+		//LOG_SERVER_CLIENT(" Damage Dealt => " + FString::SanitizeFloat(-damage));
+		if (explosionSize > 0.0f)
+			Explosion();
+		else if (knockback > 0.0f)
+			Knockback(_player);
+	}
+	
 }
 
 void ASpellProjectil::Explosion()
@@ -131,7 +151,7 @@ void ASpellProjectil::Explosion()
 	Multi_Explosion(explosionSize);
 
 	TArray<FHitResult> _results;
-	bool _hit = UKismetSystemLibrary::SphereTraceMultiForObjects(WORLD, GetActorLocation(), GetActorLocation(), explosionSize, playerLayer, false, TArray<AActor*>(), EDrawDebugTrace::ForDuration, _results, true, FLinearColor::Red, FLinearColor::Green,2.0f);
+	bool _hit = UKismetSystemLibrary::SphereTraceMultiForObjects(WORLD, GetActorLocation(), GetActorLocation(), explosionSize, playerLayer, false, TArray<AActor*>(), EDrawDebugTrace::ForDuration, _results, true, FLinearColor::Red, FLinearColor::Green, 2.0f);
 	hasExploded = true;
 	if (!_hit)return;
 
@@ -143,9 +163,17 @@ void ASpellProjectil::Explosion()
 		_uniqueActor.Add(_actorDetected);
 
 		TObjectPtr<APlayerCharacter> _player = Cast<APlayerCharacter>(_actorDetected);
-		if (!_player)continue;
+		TObjectPtr<ACombatDummy> _dummy = Cast<ACombatDummy>(_actorDetected);
+		if (_player)
+		{
+			_player->AddLife(-explosionDamage);
+		}
+		else if (_dummy)
+		{
+			_dummy->AddLife(-explosionDamage);
+		}
+		else continue;
 
-		_player->AddLife(-explosionDamage);
 		//LOG_SERVER_CLIENT(" Damage Dealt With Explosion => " + FString::SanitizeFloat(-explosionDamage));
 		if (knockback > 0.0f)
 		{
@@ -163,9 +191,9 @@ void ASpellProjectil::Multi_Explosion_Implementation(const float& _explosionSize
 	bool _hit = UKismetSystemLibrary::SphereTraceMultiForObjects(this, GetActorLocation(), GetActorLocation(), _explosionSize, playerLayer, false, TArray<AActor*>(), EDrawDebugTrace::ForDuration, _results, true, FLinearColor::Red, FLinearColor::Green, 2.0f);
 
 	//TODO FX
-	//if (!explosionFX)return;
-	//UNiagaraFunctionLibrary::Spawn
-
+	if (!explosionFX)return;
+	TObjectPtr<UNiagaraComponent> _niagaraSpawn = UNiagaraFunctionLibrary::SpawnSystemAtLocation(WORLD, explosionFX, GetActorLocation());
+	_niagaraSpawn->SetVariableFloat("Scale_All", _explosionSize / 100.0f);	//TODO change /5.0f is for the fx temp use
 }
 
 void ASpellProjectil::Knockback(TObjectPtr<APlayerCharacter> _player, bool _isExplosionKnockback)
@@ -185,18 +213,18 @@ void ASpellProjectil::Knockback(TObjectPtr<APlayerCharacter> _player, bool _isEx
 		_directionNormalize = FVector(_directionNormalize.X, _directionNormalize.Y, 0.0f);
 		_directionNormalize.Normalize();
 	}
-	
+
 
 	float _knockback = knockback;
-	if (explosionSize > 0.0f)
+	/*if (explosionSize > 0.0f)
 	{
-		float _normalizePower = 1-FVector::Distance(GetActorLocation(), _player->GetActorLocation()) / explosionSize;
-		_normalizePower = _normalizePower < 0.0f ? 0.0f: (_normalizePower > 1.0f ? 1.0f: _normalizePower);
+		float _normalizePower = 1 - FVector::Distance(GetActorLocation(), _player->GetActorLocation()) / explosionSize;
+		_normalizePower = _normalizePower < 0.0f ? 0.0f : (_normalizePower > 1.0f ? 1.0f : _normalizePower);
 		_normalizePower = _normalizePower < (knockbackMinPowerPercent / 100.0f) ? (knockbackMinPowerPercent / 100.0f) : _normalizePower;
 
 		_knockback = knockback * _normalizePower;
-	}
-	FVector _launch = _directionNormalize * FMath::Sqrt(_knockback* _player->GetCharacterMovement()->BrakingDecelerationWalking * 100.0f *2.0f);
+	}*/
+	FVector _launch = _directionNormalize * FMath::Sqrt(_knockback * _player->GetCharacterMovement()->BrakingDecelerationWalking * 100.0f * 2.0f);
 	_launch.Z += _player->GetCharacterMovement()->JumpZVelocity;
 
 
@@ -204,10 +232,23 @@ void ASpellProjectil::Knockback(TObjectPtr<APlayerCharacter> _player, bool _isEx
 	_player->LaunchCharacter(_launch, true, true);
 }
 
+void ASpellProjectil::Multi_InitProjectile_Implementation(FVector_NetQuantize _spawnLoc, FVector_NetQuantize100 _initialVelocity)
+{
+	SetActorLocation(_spawnLoc);
+	SpawnLocation = _spawnLoc;
+
+	if (!HasAuthority())
+	{
+		// Le client repart de la bonne position avec la bonne vélocité
+		movement->Velocity = _initialVelocity;
+		movement->Activate(true);
+	}
+}
+
 void ASpellProjectil::SetStatWithItem(FItem _item)
 {
 	damage = _item.damage;
-	
+
 	movement->InitialSpeed = _item.projectilSpeed;
 	//movement->Velocity = GetActorForwardVector() * movement->InitialSpeed;
 	movement->MaxSpeed = _item.projectilSpeed;
@@ -224,11 +265,15 @@ void ASpellProjectil::Server_SetLifeSpan_Implementation(const float& _time)
 {
 	kill = true;
 	SetLifeSpan(_time);
+	movement->StopMovementImmediately();
+	mesh->SetVisibility(false);
 	Multi_SetLifeSpan(_time);
 }
 
 void ASpellProjectil::Multi_SetLifeSpan_Implementation(const float& _time)
 {
 	kill = true;
+	movement->StopMovementImmediately();
+	mesh->SetVisibility(false);
 }
 

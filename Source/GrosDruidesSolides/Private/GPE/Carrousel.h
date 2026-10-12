@@ -11,6 +11,7 @@ class UAllItemsDataAsset;
 class AItemTriggerSphere;
 class APlayerCharacter;
 class URotatingMovementComponent;
+class UNiagaraSystem;
 
 UCLASS()
 class ACarrousel : public AActor
@@ -36,6 +37,13 @@ class ACarrousel : public AActor
 	UPROPERTY(EditAnywhere) float tier2randomValue = 25.0f;
 	UPROPERTY(EditAnywhere) float tier3randomValue = 10.0f;
 	UPROPERTY(EditAnywhere) float tier4randomValue = 5.0f;
+
+	UPROPERTY(EditAnywhere) bool itemAutoRespawn = false;
+	UPROPERTY(EditAnywhere) bool respawnIsBegin = false;
+	FTimerHandle timerRespawnItem;
+	UPROPERTY(EditAnywhere) float timeForRespawnItem = 15.0f;
+	UPROPERTY(EditAnywhere) TObjectPtr<UNiagaraSystem> respawnFX = nullptr;
+
 	
 public:	
 	ACarrousel();
@@ -55,4 +63,9 @@ protected:
 
 	UFUNCTION() void ObjectTake(bool& _canTakeItem, APlayerCharacter* _player);
 	FItem GetNewtRandomItem(FItem _item,TArray<FItem> _itemSpawn, TArray<FItem> _allItemsList, int _itemIndex);
+
+	void RespawnItem();
+	void DestroyAllItem();
+	UFUNCTION(NetMulticast, Reliable) void Multi_Respawn();
+
 };

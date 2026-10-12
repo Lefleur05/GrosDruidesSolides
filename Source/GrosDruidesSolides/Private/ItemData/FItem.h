@@ -4,8 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
-#include <PaperFlipbook.h>
 #include <Utility.h>
+#include "PaperSprite.h"
+#include "PaperFlipbook.h"
 #include "FItem.generated.h"
 
 UENUM(BlueprintType)
@@ -36,8 +37,8 @@ struct FItem
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FString itemName = "item";
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) TObjectPtr<UPaperSprite> sprite;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite) TObjectPtr<UPaperFlipbook> flipbook;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TSoftObjectPtr<UPaperSprite> sprite;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite) TSoftObjectPtr<UPaperFlipbook> flipbook;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) FString itemDescription = "This is an item";
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) EItemTier tier = EItemTier::IT_TierI;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite) ESpellType spell = ESpellType::ST_MINOR_PROJECTILE;
@@ -94,4 +95,42 @@ public:
 		if (spell != _other.spell)return false;
 		return true;
 	}
+
+	bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
+	{
+		Ar << itemName;
+		Ar << itemDescription;
+		Ar << tier;
+		Ar << spell;
+		Ar << projectilNumber;
+		Ar << damage;
+		Ar << projectilSpeed;
+		Ar << cooldown;
+		Ar << castTime;
+		Ar << size;
+		Ar << range;
+		Ar << knockback;
+		Ar << explosionSize;
+		Ar << explosionDamage;
+		Ar << coneSize;
+		Ar << CancelSpell;
+		Ar << hp;
+		Ar << speed;
+		Ar << dashColldown;
+
+		// Sérialise les soft paths (toujours valides même après travel)
+		FString _spritePath = sprite.ToString();
+		FString _flipbookPath = flipbook.ToString();
+		Ar << _spritePath;
+		Ar << _flipbookPath;
+		if (Ar.IsLoading())
+		{
+			sprite = TSoftObjectPtr<UPaperSprite>(FSoftObjectPath(_spritePath));
+			flipbook = TSoftObjectPtr<UPaperFlipbook>(FSoftObjectPath(_flipbookPath));
+		}
+
+		bOutSuccess = true;
+		return true;
+	}
+
 };

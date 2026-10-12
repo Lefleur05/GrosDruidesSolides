@@ -73,13 +73,14 @@ void ALobbyGameModeBase::Logout(AController* Exiting)
 	Super::Logout(Exiting);
 	if (TObjectPtr<UInfoPlayerGameInstance> _gameInstance = GetGameInstance<UInfoPlayerGameInstance>())
 	{
-		_gameInstance->SetLobbyPlayerCount(_gameInstance->GetLobbyPlayerCount() - 1);
+		//_gameInstance->SetLobbyPlayerCount(GetNumPlayers()-1);
+		
 		//LOG(FString::SanitizeFloat(_gameInstance->GetLobbyPlayerCount()) + " Player Count in lobby");
 		TMap<FString, int> _point = _gameInstance->GetPointPerPlayer();
 		if (Exiting->PlayerState && _point.Find(Exiting->PlayerState->GetUniqueId().ToString()))
 		{
 			_point.Remove(Exiting->PlayerState->GetUniqueId().ToString());
-			_gameInstance->SetPointPerPlayer(_point);
+			//_gameInstance->SetPointPerPlayer(_point);
 		}
 	}
 }
@@ -107,7 +108,7 @@ void ALobbyGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _playerCont
 			if (TObjectPtr<AInfoPlayerState> _playerState = Cast<AInfoPlayerState>(_player->GetController()->PlayerState))
 			{
 				_playerState->SetCurrentItems(TArray<FItem>());
-				LOG("ClearItem");
+				LOG_CUSTOM("ClearItem", Purple);
 			}
 		}
 	}
@@ -121,7 +122,7 @@ void ALobbyGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _playerCont
 			_gameInstance->SetLobbyPlayerCount(0);
 			pointIsReset = true;
 		}
-		_gameInstance->SetLobbyPlayerCount(_gameInstance->GetLobbyPlayerCount() + 1);
+		
 
 		TMap<FString, int> _point = _gameInstance->GetPointPerPlayer();
 		if (!_playerController || !_playerController->PlayerState)
@@ -133,8 +134,10 @@ void ALobbyGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _playerCont
 
 		if (!_point.Find(_playerId))
 		{
-			LOG_CUSTOM("Player connected " + _playerId, Blue);
+			_gameInstance->SetLobbyPlayerCount(_gameInstance->GetLobbyPlayerCount() + 1);
+			LOG_ERROR("Lobby player count " + FString::FromInt(_gameInstance->GetLobbyPlayerCount()));
 
+			LOG_CUSTOM("Player connected " + _playerId, Blue);
 			_point.Add(_playerId, 0);
 			_gameInstance->SetPointPerPlayer(_point);
 		}
@@ -150,8 +153,8 @@ void ALobbyGameModeBase::RespawnPlayer(APlayerCharacter* _player)
 {
 	//if (!HasAuthority())return;
 
-	if (_player->GetPlayerState())
-		LOG_CUSTOM(_player->GetPlayerState()->GetUniqueId().ToString() + " Start timer for Respawn", Yellow);
+	//if (_player->GetPlayerState())
+		//LOG_CUSTOM(_player->GetPlayerState()->GetUniqueId().ToString() + " Start timer for Respawn", Yellow);
 
 	if(!GetWorldTimerManager().IsTimerActive(timerRespawn1))
 		GetWorldTimerManager().SetTimer(timerRespawn1, [this, _player]() {DoRespawnPlayer(_player); }, respawnTime, false);
@@ -165,8 +168,8 @@ void ALobbyGameModeBase::RespawnPlayer(APlayerCharacter* _player)
 
 void ALobbyGameModeBase::DoRespawnPlayer(APlayerCharacter* _player)
 {
-	if (_player->GetPlayerState())
-		LOG_CUSTOM(_player->GetPlayerState()->GetUniqueId().ToString() + " Respawn", Yellow);
+	//if (_player->GetPlayerState())
+		//LOG_CUSTOM(_player->GetPlayerState()->GetUniqueId().ToString() + " Respawn", Yellow);
 	_player->Respawn();
 }
 
@@ -180,7 +183,7 @@ void ALobbyGameModeBase::ClearItem()
 			if (TObjectPtr<AInfoPlayerState> _playerState = Cast<AInfoPlayerState>(allPlayers[_i]->GetController()->PlayerState))
 			{
 				_playerState->SetCurrentItems(TArray<FItem>());
-				LOG("ClearItem");
+				//LOG_CUSTOM("ClearItem", Purple);
 			}
 		}
 	}

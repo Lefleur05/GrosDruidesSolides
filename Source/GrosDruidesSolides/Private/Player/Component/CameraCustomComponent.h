@@ -39,6 +39,7 @@ protected:
 
 	void CameraLocationWithAverage();
 	void CameraZoom();
-
+public:
+	void OnPawnClientRestartInit();
 		
 };

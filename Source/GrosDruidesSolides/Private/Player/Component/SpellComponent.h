@@ -23,11 +23,6 @@ class USpellComponent : public UActorComponent
 	UPROPERTY(EditAnywhere, Replicated) bool inShoot = false;
 	FTimerHandle castTimer;
 
-	UPROPERTY(EditAnywhere) float lastTimeShootPrimarySpell = -100.0f;
-	UPROPERTY(EditAnywhere) float lastTimeShootSecondarySpell = -100.0f;
-	UPROPERTY(EditAnywhere) float lastTimeShootShieldSpell = -100.0f;
-	UPROPERTY(EditAnywhere) float lastTimeShootUltimateSpell = -100.0f;
-
 	UPROPERTY(EditAnywhere) TSubclassOf<ASpellProjectil> primarySpellProjectil = nullptr;
 	UPROPERTY(EditAnywhere) TSubclassOf<ASpellProjectil> secondarySpellProjectil = nullptr;
 	UPROPERTY(EditAnywhere) TSubclassOf<ASpellProjectil> shieldSpellProjectil = nullptr;
@@ -41,13 +36,26 @@ class USpellComponent : public UActorComponent
 	FTimerHandle shootBurst;
 	UPROPERTY(EditAnywhere)int countBurstProjectil = 0;
 
-	UPROPERTY(EditAnywhere, Replicated) FItem itemStatsPrimarySpell;
-	UPROPERTY(EditAnywhere, Replicated) FItem itemStatsSecondarySpell;
-	UPROPERTY(EditAnywhere, Replicated) FItem itemStatsShieldSpell;
-	UPROPERTY(EditAnywhere, Replicated) FItem itemStatsUltimateSpell;
+	FTimerHandle updateServerTime;
+
+protected:
+
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) FItem itemStatsPrimarySpell;
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) FItem itemStatsSecondarySpell;
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) FItem itemStatsShieldSpell;
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) FItem itemStatsUltimateSpell;
+
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) float worldSecond = 0.0f;
+
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) float lastTimeShootPrimarySpell = -100.0f;
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) float lastTimeShootSecondarySpell = -100.0f;
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) float lastTimeShootShieldSpell = -100.0f;
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly) float lastTimeShootUltimateSpell = -100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly) float serverTime =0.0f;
 
 public:
-	FORCEINLINE void SetCanShoot(bool _canShoot) { canShoot = _canShoot; LOG("Set Can Shoot = " + (canShoot ? " true" : " false")); }
+	FORCEINLINE void SetCanShoot(bool _canShoot) { canShoot = _canShoot;/* LOG("Set Can Shoot = " + (canShoot ? " true" : " false")); */}
 
 public:	
 	USpellComponent();
@@ -68,6 +76,8 @@ protected:
 
 	TArray<float> GetRandomAngleInCone(int _countAngle, float _coneAngle);
 
+	UFUNCTION(BlueprintCallable) float GetCooldownPercent(ESpellType _spellType);
+	void UpdateServerTime();
 public:
 	void UpdateTriItem();
 	void ShootSpell(TSubclassOf<ASpellProjectil> _spellProjectil, float& _lastTimeShootSpell, FItem itemStatsSpell);

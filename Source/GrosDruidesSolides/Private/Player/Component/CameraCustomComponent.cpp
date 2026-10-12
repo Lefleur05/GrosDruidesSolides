@@ -24,39 +24,44 @@ void UCameraCustomComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+}
+
+void UCameraCustomComponent::OnPawnClientRestartInit()
+{
 	player = Cast<APlayerCharacter>(OWNER);
-	if (player && player->IsLocallyControlled())
+
+	if (player)
 	{
 		springArm = player->GetSpringArm();
 		camera = player->GetCamera();
 
-		FString _levelName = UGameplayStatics::GetCurrentLevelName(GetWorld());
-		LOG("Level Name => " + _levelName);
-		if (dataAsset && dataAsset->cameraParamPerMap.Contains(_levelName))
-		{
-			FCameraParam _param =
-				param = dataAsset->cameraParamPerMap[_levelName];
-		}
-		else
-		{
-			param = FCameraParam();
-		}
-
-		if (springArm)
-		{
-			LOG("SpringArm Rotation => " + param.initialRotation.ToString());
-			springArm->SetWorldRotation(param.initialRotation);
-		}
-		else if (!springArm)
-		{
-			LOG_ERROR("No SpringArm In Camera");
-		}
 	}
 	else if (!player)
 	{
 		LOG_ERROR("No Player In Camera");
 	}
+	FString _levelName = UGameplayStatics::GetCurrentLevelName(GetWorld());
+	//LOG("Level Name => " + _levelName);
+	if (dataAsset && dataAsset->cameraParamPerMap.Contains(_levelName))
+	{
+		param = dataAsset->cameraParamPerMap[_levelName];
+	}
+	else
+	{
+		param = FCameraParam();
+	}
+	if (springArm)
+	{
+		springArm->SetUsingAbsoluteRotation(true);
+		springArm->SetWorldRotation(param.initialRotation);
+	}
+	else if (!springArm)
+	{
+		LOG_ERROR("No SpringArm In Camera");
+	}
+
 }
+
 
 
 // Called every frame
@@ -80,7 +85,7 @@ void UCameraCustomComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 void UCameraCustomComponent::CameraLocationWithAverage()
 {
-	FRAME_LOG("CameraLocationWithAverage");
+	//FRAME_LOG("CameraLocationWithAverage");
 	if (!springArm)return;
 	FVector _averagePlayersLoc = FVector(0.0f);
 	int _countPlayerAlive = 0;
@@ -102,7 +107,7 @@ void UCameraCustomComponent::CameraLocationWithAverage()
 
 	FVector _newLoc = FMath::VInterpConstantTo(springArm->GetComponentLocation(), _averagePlayersLoc, DELTATIME, _moveSpeed);
 	springArm->SetWorldLocation(_newLoc);
-	FRAME_LOG(_newLoc.ToString());
+	//FRAME_LOG(_newLoc.ToString());
 
 	//SetActorLocation(_newLoc);
 }
@@ -132,4 +137,5 @@ void UCameraCustomComponent::CameraZoom()
 	_newZoom = FMath::FInterpConstantTo<float>(springArm->TargetArmLength, _newZoom * param.minZoom, DELTATIME, param.zoomSpeed);
 	springArm->TargetArmLength = _newZoom;
 }
+
 

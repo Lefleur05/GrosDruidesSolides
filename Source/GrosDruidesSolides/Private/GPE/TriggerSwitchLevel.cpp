@@ -34,22 +34,25 @@ void ATriggerSwitchLevel::NotifyActorBeginOverlap(AActor* _otherActor)
 	if (!HasAuthority())return;
 
 	TObjectPtr<APlayerCharacter> _player = Cast<APlayerCharacter>(_otherActor);
-	if (_player && !listPlayerContain.Contains(_player))
+	if (IsValid(_player) && !listPlayerContain.Contains(_player))
 		listPlayerContain.Add(_player);
 
-	const int _count = listPlayerContain.Num();
-	for (int _i = 0; _i < _count; _i++)
-	{
-		if (!listPlayerContain[_i])
-			listPlayerContain.RemoveAt(_i);
-	}
+	//const int _count = listPlayerContain.Num();
+	//for (int _i = 0; _i < _count; _i++)
+	//{
+	//	if (!listPlayerContain[_i])
+	//		listPlayerContain.RemoveAt(_i);
+	//}
 
-	if (WORLD->GetGameState()->PlayerArray.Num() == listPlayerContain.Num())
+	listPlayerContain.RemoveAll([](const TObjectPtr<APlayerCharacter>& _player){return !IsValid(_player);}); // remove player when return !IsValid(_player); return true
+
+	if (WORLD->GetGameState()->PlayerArray.Num() == listPlayerContain.Num() && listPlayerContain.Num() >= minPlayerForStart)
 	{
 		if (!GetWorldTimerManager().IsTimerActive(timerStartGame))
 		{
 			TIMER(this, timerStartGame, StartGame(), timeStartGame);
-			LOG("Start Timer for start game");
+			LOG_CUSTOM("Start Timer for start game", Emerald);
+			SetCountDown(timeStartGame);
 		}
 	}
 
@@ -61,13 +64,16 @@ void ATriggerSwitchLevel::NotifyActorEndOverlap(AActor* _otherActor)
 	if (!HasAuthority())return;
 
 	TObjectPtr<APlayerCharacter> _player = Cast<APlayerCharacter>(_otherActor);
-	if (_player && listPlayerContain.Contains(_player))
+	if (IsValid(_player) && listPlayerContain.Contains(_player))
 		listPlayerContain.Remove(_player);
 
 	if (WORLD->GetGameState()->PlayerArray.Num() != listPlayerContain.Num())
 	{
 		if (GetWorldTimerManager().IsTimerActive(timerStartGame))
-			CLEAR_TIMER(timerStartGame); 
+			CLEAR_TIMER(timerStartGame);
+		if(IsValid(_player))
+			_player->Client_StartCountDownUI(-1);
+		SetCountDown(-1);
 	}
 }
 
@@ -78,10 +84,10 @@ void ATriggerSwitchLevel::StartGame()
 	{
 		ClearIteam();
 	}
-	LOG("Server Travel to => " + targetLevel);
+	LOG_CUSTOM("Server Travel to => " + targetLevel, Emerald);
 	// For server travel to a map and choose the game mode
 
-	WORLD->ServerTravel("/Game/Level/"+targetLevel + "?game=/Game/Blueprint/GameMode/BP_CarrouselGameModeBase.BP_CarrouselGameModeBase_C");	
+	WORLD->ServerTravel("/Game/Level/" + targetLevel); // + "?game=/Game/Blueprint/GameMode/BP_CarrouselGameModeBase.BP_CarrouselGameModeBase_C"
 }
 
 void ATriggerSwitchLevel::ClearIteam()
@@ -89,5 +95,21 @@ void ATriggerSwitchLevel::ClearIteam()
 	if(GetWorld())
 		if(TObjectPtr<ALobbyGameModeBase> _gameMode = Cast<ALobbyGameModeBase>(GetWorld()->GetAuthGameMode()))
 			_gameMode->ClearItem();
+}
+
+void ATriggerSwitchLevel::SetCountDown(float _countDown)
+{
+	LOG_CUSTOM("SetCountDown " + FString::SanitizeFloat(_countDown), Emerald);
+
+	const int& _count = listPlayerContain.Num();
+	for (int _i = 0; _i < _count; _i++)
+	{
+		TObjectPtr<APlayerCharacter> _player = listPlayerContain[_i];
+		if (IsValid(_player))
+		{
+			_player->Client_StartCountDownUI(_countDown);
+
+		}
+	}
 }
 

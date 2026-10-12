@@ -125,8 +125,8 @@ void USessionManagerSubsystem::CreateSession(int32 _maxPlayers, const FString& _
 	_sessionSettings->bAllowJoinViaPresenceFriendsOnly = false;
 	//_sessionSettings->bAllowJoinInProgress = false;
 	_sessionSettings->bAllowInvites = true;
-	_sessionSettings->Set(FName("SERVER_NAME"), _serverName+"ix", EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-	_sessionSettings->Set(FName("GAME_NAME"), FString("O3DGame"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+	_sessionSettings->Set(FName("SERVER_NAME"), _serverName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+	_sessionSettings->Set(FName("GAME_NAME"), FString("GrosDruidesSolides"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
 	// Create the session
 	sessionInterface->CreateSession(0, NAME_GameSession, *_sessionSettings);
@@ -149,7 +149,7 @@ void USessionManagerSubsystem::FindSessions()
 	sessionSearch->bIsLanQuery = (_oss->GetSubsystemName() == "NULL");
 	sessionSearch->MaxSearchResults = 10000;
 	sessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
-	sessionSearch->QuerySettings.Set(FName("GAME_NAME"), FString("O3DGame"), EOnlineComparisonOp::Equals);
+	//sessionSearch->QuerySettings.Set(FName("GAME_NAME"), FString("O3DGame"), EOnlineComparisonOp::Equals);
 
 
 	sessionInterface->FindSessions(0, sessionSearch.ToSharedRef());
@@ -222,7 +222,8 @@ void USessionManagerSubsystem::OnCreateSessionComplete_Internal(FName _sessionNa
 				return;
 			}
 			UKismetSystemLibrary::PrintString(this, "Traveling to world !");
-			pendingLevel = "/Game/Level/LVL_Lobby"; //To Change;
+			//pendingLevel = "/Game/Level/LVL_Lobby"; //To Change;
+			pendingLevel = "/Game/Level/Lobby/LVL_TestLobby"; //To Change;
 			_world->ServerTravel(pendingLevel + "?listen");
 
 			return;
@@ -234,10 +235,8 @@ void USessionManagerSubsystem::OnCreateSessionComplete_Internal(FName _sessionNa
 void USessionManagerSubsystem::OnFindSessionsComplete_Internal(bool _wasSuccessful)
 {
 	foundServers.Empty();
-	UKismetSystemLibrary::PrintString(
-		this,
-		FString::Printf(TEXT("Search success: %s"), _wasSuccessful ? TEXT("Success") : TEXT("Failed"))
-	);
+	UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("Search success: %s"), _wasSuccessful ? TEXT("Success") : TEXT("Failed")));
+
 	if (_wasSuccessful && sessionSearch.IsValid())
 	{
 		int32 _size = sessionSearch->SearchResults.Num();
@@ -245,6 +244,11 @@ void USessionManagerSubsystem::OnFindSessionsComplete_Internal(bool _wasSuccessf
 		for (int32 Index = 0; Index < _size; Index++)
 		{
 			const FOnlineSessionSearchResult& _result = sessionSearch->SearchResults[Index];
+
+			FString _gameName;
+			if (!_result.Session.SessionSettings.Get(FName("GAME_NAME"), _gameName)|| _gameName != "GrosDruidesSolides")
+				continue; // note our game, skip
+
 
 			FServerInfo _info;
 			FString _name;
@@ -304,6 +308,14 @@ void USessionManagerSubsystem::OnJoinSessionComplete_Internal(FName _sessionName
 
 void USessionManagerSubsystem::OnDestroySessionComplete_Internal(FName _sessionName, bool _wasSuccessul)
 {
+	if (pendingInviteResult.IsSet())
+	{
+		FOnlineSessionSearchResult _inviteResult = pendingInviteResult.GetValue();
+		pendingInviteResult.Reset();
+		sessionInterface->JoinSession(*IOnlineSubsystem::Get()->GetIdentityInterface()->GetUniquePlayerId(0), NAME_GameSession, _inviteResult);
+		return;
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("Session Destroyed (client cleanup"));
 	sessionSearch = nullptr;
 	foundServers.Empty();
@@ -319,6 +331,7 @@ void USessionManagerSubsystem::OnInviteAccepted(bool _wasSuccessful, int32 _loca
 	FNamedOnlineSession* _existingSession = sessionInterface->GetNamedSession(NAME_GameSession);
 	if (_existingSession)
 	{
+		pendingInviteResult = _inviteResult;
 		sessionInterface->DestroySession(NAME_GameSession);
 		return;
 	}

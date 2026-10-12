@@ -8,6 +8,7 @@
 #include <Kismet/GameplayStatics.h>
 #include "PlayerState/InfoPlayerState.h"
 #include "Player/Component/SpellComponent.h"
+#include "CarrouselGameModeBase.h"
 
 ACarrouselGameModeBase::ACarrouselGameModeBase()
 {
@@ -26,6 +27,14 @@ void ACarrouselGameModeBase::Tick(float DeltaTime)
 
 }
 
+void ACarrouselGameModeBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	CLEAR_TIMER(timerFreeLastPlayer);
+	CLEAR_TIMER(timerFreeMidPlayer);
+	CLEAR_TIMER(timerFreeFirstPlayer);
+}
+
 void ACarrouselGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _playerController, TObjectPtr<APlayerCharacter> _player)
 {
 	Super::NotifyPawnPossessed(_playerController, _player);
@@ -34,8 +43,8 @@ void ACarrouselGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _player
 	if (TObjectPtr<UInfoPlayerGameInstance> _gameInstance = GetGameInstance<UInfoPlayerGameInstance>())
 	{
 		_allplayerconnected = allPlayers.Num() == _gameInstance->GetLobbyPlayerCount();
-		LOG("All Player Connected = " + FString::FromInt(allPlayers.Num()) + " == " + FString::SanitizeFloat(_gameInstance->GetLobbyPlayerCount()));
-		carrouselSpawnPoint = _gameInstance->FindLevelInfoWithLevelName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true)).allSpawnPoint;
+		//LOG("All Player Connected = " + FString::FromInt(allPlayers.Num()) + " == " + FString::SanitizeFloat(_gameInstance->GetLobbyPlayerCount()));
+		allSpawnPoint = _gameInstance->FindLevelInfoWithLevelName(UGameplayStatics::GetCurrentLevelName(GetWorld(), true)).allSpawnPoint;
 		pointPerPlayer = _gameInstance->GetPointPerPlayer();
 	}
 	if (_allplayerconnected && WORLD)
@@ -47,7 +56,7 @@ void ACarrouselGameModeBase::NotifyPawnPossessed(TObjectPtr<AController> _player
 
 void ACarrouselGameModeBase::Init()
 {
-	const int& _count = allPlayers.Num();
+	const int _count = allPlayers.Num();
 	for (int _i = 0; _i < _count; _i++)
 	{
 		TObjectPtr<APlayerCharacter> _player = allPlayers[_i];
@@ -65,22 +74,70 @@ void ACarrouselGameModeBase::Init()
 			//LOG("Player Bind => " + FString::SanitizeFloat(_i));
 			//pointPerPlayer.Add(allPlayers[_i], 0);
 
-			if (allSpawnPoint.Num() >= 1.0f)
-			{
-				int _y = _i % allSpawnPoint.Num();
-				_player->SetActorLocation(allSpawnPoint[_y]);
+			
+		}
+	}
+	SetPlayerLocationAndRotation();
+}
 
+void ACarrouselGameModeBase::StartCarrousel()
+{
+	const int& _count = allPlayers.Num();
+	for (int _i = 0; _i < _count; _i++)
+	{
+		TObjectPtr<APlayerCharacter> _player = allPlayers[_i];
+		if (IsValid(_player))
+		{
+			_player->SetCanMove(false);
+			_player->SetCanTakeDamage(false);
+			_player->SetCanDash(false);
+			if (_player->GetSpellComponent())
+				_player->GetSpellComponent()->SetCanShoot(false);
+		}
+	}
+	SetPlayerLocationAndRotation();
+	TriPlayerPerPoint();
+	//StartCountDown();
+	countObjectTake = 0;
+
+	TIMER(this, timerFreeLastPlayer, FreeLastPlayer(), timeForLastPlayer);
+	TIMER(this, timerFreeMidPlayer, FreeMidPlayer(), timeForMidPlayer);
+	TIMER(this, timerFreeFirstPlayer, FreeFirstPlayer(), timeForFirstPlayer);
+
+}
+
+/*void ACarrouselGameModeBase::StartCountDown()
+{
+	const int& _count = allPlayers.Num();
+	for (int _i = 0; _i < _count; _i++)
+	{
+		TObjectPtr<APlayerCharacter> _player = allPlayers[_i];
+		if (IsValid(_player))
+		{
+
+			if (firstPlayers.Contains(_player))
+			{
+				_player->Client_StartCountDownUI(timeForFirstPlayer);
+			}
+			else if (midPlayers.Contains(_player))
+			{
+				_player->Client_StartCountDownUI(timeForMidPlayer);
+			}
+			else if (lastPlayers.Contains(_player))
+			{
+				_player->Client_StartCountDownUI(timeForLastPlayer);
 			}
 		}
 	}
-}
+
+}*/
 
 void ACarrouselGameModeBase::TriPlayerPerPoint()
 {
 	int _lastPlayerPoint = 0;
 	int _firstPlayerPoint = 1;
 
-	const int& _count = allPlayers.Num();
+	const int _count = allPlayers.Num();
 	for (int _i = 0; _i < _count; _i++)
 	{
 		if (IsValid(allPlayers[_i]))
@@ -103,21 +160,25 @@ void ACarrouselGameModeBase::TriPlayerPerPoint()
 
 	for (int _i = 0; _i < _count; _i++)
 	{
-		if (IsValid(allPlayers[_i]))
+		TObjectPtr<APlayerCharacter> _player = allPlayers[_i];
+		if (IsValid(_player))
 		{
-			FString _playerName = allPlayers[_i]->GetController()->PlayerState->GetUniqueId().ToString();
+			FString _playerName = _player->GetController()->PlayerState->GetUniqueId().ToString();
 
 			if (pointPerPlayer.Contains(_playerName) && pointPerPlayer[_playerName] <= _lastPlayerPoint)
 			{
-				lastPlayers.Add(allPlayers[_i]);
+				lastPlayers.Add(_player);
+				_player->Client_StartCountDownUI(timeForLastPlayer);
 			}
 			else if (pointPerPlayer.Contains(_playerName) && pointPerPlayer[_playerName] >= _firstPlayerPoint)
 			{
-				firstPlayers.Add(allPlayers[_i]);
+				firstPlayers.Add(_player);
+				_player->Client_StartCountDownUI(timeForFirstPlayer);
 			}
 			else
 			{
-				midPlayers.Add(allPlayers[_i]);
+				midPlayers.Add(_player);
+				_player->Client_StartCountDownUI(timeForMidPlayer);
 			}
 		}
 	}
@@ -125,11 +186,11 @@ void ACarrouselGameModeBase::TriPlayerPerPoint()
 
 void ACarrouselGameModeBase::FreeLastPlayer()
 {
-	const int& _count = lastPlayers.Num();
+	const int _count = lastPlayers.Num();
 	for (int _i = 0; _i < _count; _i++)
 	{
+		if (!lastPlayers.IsValidIndex(_i)) continue;
 		TObjectPtr<APlayerCharacter> _player = lastPlayers[_i];
-
 		if (_player)
 		{
 			_player->SetCanMove(true);
@@ -143,11 +204,11 @@ void ACarrouselGameModeBase::FreeLastPlayer()
 
 void ACarrouselGameModeBase::FreeMidPlayer()
 {
-	const int& _count = midPlayers.Num();
+	const int _count = midPlayers.Num();
 	for (int _i = 0; _i < _count; _i++)
 	{
+		if (!midPlayers.IsValidIndex(_i)) continue;
 		TObjectPtr<APlayerCharacter> _player = midPlayers[_i];
-
 		if (_player)
 		{
 			_player->SetCanMove(true);
@@ -161,11 +222,11 @@ void ACarrouselGameModeBase::FreeMidPlayer()
 
 void ACarrouselGameModeBase::FreeFirstPlayer()
 {
-	const int& _count = firstPlayers.Num();
+	const int _count = firstPlayers.Num();
 	for (int _i = 0; _i < _count; _i++)
 	{
+		if (!firstPlayers.IsValidIndex(_i)) continue;
 		TObjectPtr<APlayerCharacter> _player = firstPlayers[_i];
-
 		if (_player)
 		{
 			_player->SetCanMove(true);
@@ -177,41 +238,23 @@ void ACarrouselGameModeBase::FreeFirstPlayer()
 	}
 }
 
-void ACarrouselGameModeBase::StartCarrousel()
+void ACarrouselGameModeBase::ObjectTake(APlayerCharacter* _player, FItem _item)
 {
-	const int& _count = allPlayers.Num();
-	for (int _i = 0; _i < _count; _i++)
-	{
-		TObjectPtr<APlayerCharacter> _player = allPlayers[_i];
-		if (IsValid(_player))
-		{
-			_player->SetCanMove(false);
-			_player->SetCanTakeDamage(false);
-			_player->SetCanDash(false);
-			if (_player->GetSpellComponent())
-				_player->GetSpellComponent()->SetCanShoot(false);
-
-			if (carrouselSpawnPoint.Num() > 0)
-				allPlayers[_i]->SetActorLocation(carrouselSpawnPoint[_i % carrouselSpawnPoint.Num()]);
-		}
-	}
-	TriPlayerPerPoint();
-	countObjectTake = 0;
-
-	TIMER(this, timerFreeLastPlayer, FreeLastPlayer(), timeForLastPlayer);
-	TIMER(this, timerFreeMidPlayer, FreeMidPlayer(), timeForMidPlayer);
-	TIMER(this, timerFreeFirstPlayer, FreeFirstPlayer(), timeForFirstPlayer);
-
-}
-
-void ACarrouselGameModeBase::ObjectTake(APlayerCharacter* _player)
-{
+	if (!HasAuthority())return;
 	countObjectTake++;
 
 	//LOG("CountObjectTake " + FString::SanitizeFloat(countObjectTake) + " == " + FString::SanitizeFloat(allPlayers.Num()));
 	if (countObjectTake >= allPlayers.Num())
 	{
-		SwitchToBattle();
+		if (timeBeforeSwitch >= 0.2f)
+		{
+			TIMER(this, timerSwitchLevel, SwitchToBattle(), timeBeforeSwitch);
+			StartCountDown(timeBeforeSwitch);
+		}
+		else
+		{
+			SwitchToBattle();
+		}
 	}
 }
 
@@ -219,10 +262,14 @@ void ACarrouselGameModeBase::SwitchToBattle()
 {
 	if (!HasAuthority())return;
 	TObjectPtr<UInfoPlayerGameInstance> _gameInstance = GetGameInstance<UInfoPlayerGameInstance>();
-	if (!_gameInstance)return;
+	if (!_gameInstance)
+	{
+		WORLD->ServerTravel("LVL_TestLobby?game=/Game/Blueprint/GameMode/BP_LobbyGameModeBase.BP_LobbyGameModeBase_C");
+		return;
+	}
 	if (_gameInstance->GetAllBattleMap().Num() <= 0)
 	{
-		WORLD->ServerTravel("LVL_Lobby?game=/Game/Blueprint/GameMode/BP_LobbyGameModeBase.BP_LobbyGameModeBase_C");
+		WORLD->ServerTravel(_gameInstance->GoToLobby() + "?game=/Game/Blueprint/GameMode/BP_CarrouselGameModeBase.BP_CarrouselGameModeBase_C");
 		return;
 	}
 
@@ -240,9 +287,8 @@ void ACarrouselGameModeBase::SwitchToBattle()
 		}
 	}
 
-	int _mapIndex = UKismetMathLibrary::RandomIntegerInRange(0.0f, _gameInstance->GetAllBattleMap().Num()-1);
-	FString _targetLevel = _gameInstance->GetAllBattleMap()[_mapIndex].map;
+	FString _targetLevel = _gameInstance->GetRandomLevel();
 
-	LOG("Server Travel to => " + _targetLevel);
+	LOG_CUSTOM("Server Travel to => " + _targetLevel, Emerald);
 	WORLD->ServerTravel(_targetLevel + "?game=/Game/Blueprint/GameMode/BP_BattleGameModeBase.BP_BattleGameModeBase_C");
 }

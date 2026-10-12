@@ -35,14 +35,15 @@
 // ======== Utility ========
 
 // ======== LOGGING ========
-#define LOG_CUSTOM(message, color) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, FColor::color, 20.0f)
-#define LOG_CUSTOM_TIME(message, color, duration) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, FColor::color, duration)
+bool showLog = false;
+#define LOG_CUSTOM(message, color) if(showLog) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, FColor::color, 20.0f)
+#define LOG_CUSTOM_TIME(message, color, duration) if(showLog) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, FColor::color, duration)
 #define LOG(message) LOG_CUSTOM(message, Green)
 #define LOG_WARN(message) LOG_CUSTOM(message, Yellow)
-#define LOG_ERROR(message) LOG_CUSTOM(message, Red)
-#define FRAME_LOG(message) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, FColor::Magenta, DELTATIME)
-#define FRAME_LOG_CUSTOM(message, color) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, FColor::color, DELTATIME)
-#define FRAME_LOG_CUSTOM_C(message, color) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, color, DELTATIME)
+#define LOG_ERROR(message) showLog = true; LOG_CUSTOM(message, Red); showLog = false
+#define FRAME_LOG(message) if(showLog) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, FColor::Magenta, DELTATIME)
+#define FRAME_LOG_CUSTOM(message, color) if(showLog) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, FColor::color, DELTATIME)
+#define FRAME_LOG_CUSTOM_C(message, color) if(showLog) UKSL::PrintString(this, FPaths::GetBaseFilename(TEXT(__FILE__)) + "(" + FString::FromInt(__LINE__) + ")=> " + message, true, false, color, DELTATIME)
 // ======== LOGGING ========
 
 // ======== NETWORK ========

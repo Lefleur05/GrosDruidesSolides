@@ -25,12 +25,15 @@ class ACarrouselGameModeBase : public AMultyGameModeBase
 	UPROPERTY(EditAnywhere) float timeForLastPlayer = 2.0f;
 	UPROPERTY(EditAnywhere) float timeForMidPlayer = 4.0f;
 	UPROPERTY(EditAnywhere) float timeForFirstPlayer = 6.0f;
-	UPROPERTY(EditAnywhere) FTimerHandle timerFreeLastPlayer;
-	UPROPERTY(EditAnywhere) FTimerHandle timerFreeMidPlayer;
-	UPROPERTY(EditAnywhere) FTimerHandle timerFreeFirstPlayer;
+	FTimerHandle timerFreeLastPlayer;
+	FTimerHandle timerFreeMidPlayer;
+	FTimerHandle timerFreeFirstPlayer;
 	UPROPERTY(EditAnywhere) TArray<TObjectPtr<APlayerCharacter>> firstPlayers;
 	UPROPERTY(EditAnywhere) TArray<TObjectPtr<APlayerCharacter>> midPlayers;
 	UPROPERTY(EditAnywhere) TArray<TObjectPtr<APlayerCharacter>> lastPlayers;
+
+	UPROPERTY(EditAnywhere) float timeBeforeSwitch = 5.0f;
+	FTimerHandle timerSwitchLevel;
 
 public:
 	ACarrouselGameModeBase();
@@ -38,18 +41,19 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual void NotifyPawnPossessed(TObjectPtr<AController> _playerController, TObjectPtr<APlayerCharacter> _player) override;
 
 	void Init();
-
 	void StartCarrousel();
+
 
 	void TriPlayerPerPoint();
 	void FreeLastPlayer();
 	void FreeMidPlayer();
 	void FreeFirstPlayer();
-	UFUNCTION() void ObjectTake(APlayerCharacter* _player);
+	UFUNCTION() void ObjectTake(APlayerCharacter* _player, FItem _item);
 
 	void SwitchToBattle();
 };

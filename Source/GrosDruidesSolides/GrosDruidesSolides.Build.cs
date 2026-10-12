@@ -8,7 +8,7 @@ public class GrosDruidesSolides : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "OnlineSubsystem", "OnlineSubsystemUtils", "Paper2D", "CoreOnline", "Niagara" });
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "OnlineSubsystem", "OnlineSubsystemUtils", "Paper2D", "CoreOnline", "Niagara", "UMG", "Slate", "SlateCore" });
 
         PrivateDependencyModuleNames.AddRange(new string[] { "GameAnalytics" });
 

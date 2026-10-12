@@ -8,6 +8,8 @@
 #include "Player/PlayerCharacter.h"
 #include <Net/UnrealNetwork.h>
 #include <GameFramework/RotatingMovementComponent.h>
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 // Sets default values
 ACarrousel::ACarrousel()
@@ -20,8 +22,11 @@ ACarrousel::ACarrousel()
 void ACarrousel::BeginPlay()
 {
 	Super::BeginPlay();
-	if(HasAuthority())
+	if (HasAuthority())
+	{
 		SpawnItem();
+	}
+
 }
 
 void ACarrousel::Tick(float DeltaTime)
@@ -56,7 +61,7 @@ void ACarrousel::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ACarrousel::SpawnItem()
 {
 	TArray<FItem> _items = GetRandomItem(countItemToSpawn);
-	LOG("Count ITEMS " + FString::SanitizeFloat(_items.Num()));
+	//LOG_CUSTOM("Count ITEMS " + FString::SanitizeFloat(_items.Num()), Purple);
 	for (int _i = 0; _i < countItemToSpawn; _i++)
 	{
 		// SpawnActorDeferred for spawn without beginPlay
@@ -86,39 +91,39 @@ TArray<FItem> ACarrousel::GetRandomItem(const int& _itemCount)
 	for (int _i = 0; _i < _itemCount; _i++)
 	{
 		int _rand = UKismetMathLibrary::RandomIntegerInRange(0, tier1randomValue + tier2randomValue + tier3randomValue + tier4randomValue);
-		if (_rand >= 0.0f && _rand < tier1randomValue && itemsDataAsset->itemsTier1.Num() > 0.0f)
+		if (_rand >= 0.0f && _rand < tier1randomValue && itemsDataAsset->itemsTier1.Num() > 0)
 		{
-			_rand = FMath::FRandRange(0.0f, itemsDataAsset->itemsTier1.Num()-1);
+			_rand = FMath::RandRange(0, itemsDataAsset->itemsTier1.Num()-1);
 			FItem _newItem = itemsDataAsset->itemsTier1[_rand];
 			if(_items.Contains(_newItem))
 				_newItem = GetNewtRandomItem(_newItem, _items, itemsDataAsset->itemsTier1, _rand);
 			_items.Add(_newItem);
 		}
-		else if(_rand >= tier1randomValue && _rand < (tier1randomValue+tier2randomValue) && itemsDataAsset->itemsTier2.Num() > 0.0f)
+		else if(_rand >= tier1randomValue && _rand < (tier1randomValue+tier2randomValue) && itemsDataAsset->itemsTier2.Num() > 0)
 		{
-			_rand = FMath::FRandRange(0.0f, itemsDataAsset->itemsTier2.Num()-1);
+			_rand = FMath::RandRange(0, itemsDataAsset->itemsTier2.Num()-1);
 			FItem _newItem = itemsDataAsset->itemsTier2[_rand];
 
 			FString _itemName1 = _newItem.itemName;
 			int _index = _itemName1.Find(" ");
 			_itemName1 = (_index != INDEX_NONE) ? _itemName1.Left(_index) : _itemName1;
-			LOG("ItemName Normaliser => " + _itemName1);
+			//LOG("ItemName Normaliser => " + _itemName1);
 
 			if (_items.Contains(_newItem))
 				_newItem = GetNewtRandomItem(_newItem, _items, itemsDataAsset->itemsTier2, _rand);
 			_items.Add(_newItem);
 		}
-		else if (_rand >= (tier1randomValue + tier2randomValue) && _rand < (tier1randomValue + tier2randomValue+ tier3randomValue) && itemsDataAsset->itemsTier3.Num() > 0.0f)
+		else if (_rand >= (tier1randomValue + tier2randomValue) && _rand < (tier1randomValue + tier2randomValue+ tier3randomValue) && itemsDataAsset->itemsTier3.Num() > 0)
 		{
-			_rand = FMath::FRandRange(0.0f, itemsDataAsset->itemsTier3.Num()-1);
+			_rand = FMath::RandRange(0, itemsDataAsset->itemsTier3.Num()-1);
 			FItem _newItem = itemsDataAsset->itemsTier3[_rand];
 			if (_items.Contains(_newItem))
 				_newItem = GetNewtRandomItem(_newItem, _items, itemsDataAsset->itemsTier3, _rand);
 			_items.Add(_newItem);
 		}
-		else if (_rand >= (tier1randomValue + tier2randomValue + tier3randomValue) && _rand <= (tier1randomValue + tier2randomValue + tier3randomValue + tier3randomValue) && itemsDataAsset->itemsTier4.Num() > 0.0f)
+		else if (_rand >= (tier1randomValue + tier2randomValue + tier3randomValue) && _rand <= (tier1randomValue + tier2randomValue + tier3randomValue + tier4randomValue) && itemsDataAsset->itemsTier4.Num() > 0)
 		{
-			_rand = FMath::FRandRange(0.0f, itemsDataAsset->itemsTier4.Num()-1);
+			_rand = FMath::RandRange(0, itemsDataAsset->itemsTier4.Num()-1);
 			FItem _newItem = itemsDataAsset->itemsTier4[_rand];
 			if (_items.Contains(_newItem))
 				_newItem = GetNewtRandomItem(_newItem, _items, itemsDataAsset->itemsTier4, _rand);
@@ -154,6 +159,12 @@ void ACarrousel::ObjectTake(bool& _canTakeItem, APlayerCharacter* _player)
 	else
 		countItemByPlayer.Add(_player, 1);
 
+	if (itemAutoRespawn && !respawnIsBegin)
+	{
+		TIMER(this, timerRespawnItem, RespawnItem(), timeForRespawnItem);
+		respawnIsBegin = true;
+	}
+
 }
 
 FItem ACarrousel::GetNewtRandomItem(FItem _item, TArray<FItem> _itemSpawn, TArray<FItem> _allItemsList, int _itemIndex)
@@ -167,6 +178,33 @@ FItem ACarrousel::GetNewtRandomItem(FItem _item, TArray<FItem> _itemSpawn, TArra
 		_item = _allItemsList[_itemIndex];
 	}
 	return _item;
+}
+
+void ACarrousel::RespawnItem()
+{
+	if (!HasAuthority())return;
+	respawnIsBegin = false;
+	countItemByPlayer = TMap<APlayerCharacter*, int32>();
+	Multi_Respawn();
+	DestroyAllItem();
+	SpawnItem();
+}
+
+void ACarrousel::DestroyAllItem()
+{
+	const int& _count = allItems.Num();
+	for (int _i = 0; _i < _count; _i++)
+	{
+		if (IsValid(allItems[_i]))
+			allItems[_i]->Destroy();
+	}
+	allItems = TArray<TObjectPtr<AItemTriggerSphere>>();
+}
+
+void ACarrousel::Multi_Respawn_Implementation()
+{
+	if (!respawnFX)return;
+	TObjectPtr<UNiagaraComponent> _niagaraSpawn = UNiagaraFunctionLibrary::SpawnSystemAtLocation(WORLD, respawnFX, GetActorLocation());
 }
 
 void ACarrousel::Server_RotateItemWithCarrousel_Implementation(FRotator _newRot)

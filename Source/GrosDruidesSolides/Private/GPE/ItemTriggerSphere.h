@@ -14,12 +14,14 @@ class UPaperFlipbookComponent;
 class UPaperSpriteComponent;
 class APlayerCharacter;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTryTake,bool&, _canTakeItem, APlayerCharacter*, _player);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUpdateItem, FItem, _newItem);
+
 UCLASS()
 class AItemTriggerSphere : public ATriggerSphere
 {
 	GENERATED_BODY()
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTryTake, bool&, _canTakeItem, APlayerCharacter*, _player);
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUpdateItem, FItem, _newItem);
+
 public:
 	FOnTryTake onTryTake;
 	UPROPERTY(EditAnywhere, BlueprintAssignable)FOnUpdateItem onUpdateItem;
@@ -49,7 +51,7 @@ protected:
 	
 	UFUNCTION() void OnRep_Item();
 
-	UFUNCTION(Server, Reliable) void Server_AddItemToPlayerDetected(APlayerCharacter* _player);
+	void AddItemToPlayerDetected(TObjectPtr<APlayerCharacter> _player);
 	UFUNCTION(NetMulticast, Reliable) void Multi_AddItemToPlayerDetected(APlayerCharacter* _player);
 
 	void UpdateItem();

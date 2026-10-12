@@ -22,6 +22,7 @@ class ABattleGameModeBase : public AMultyGameModeBase
 	UPROPERTY(EditAnywhere) float timeForStartBattle = 5.0f;
 	UPROPERTY(EditAnywhere) FTimerHandle timerForStartBattle;
 	UPROPERTY(EditAnywhere) FTimerHandle timerEndBattle;
+	UPROPERTY(EditAnywhere) FTimerHandle timerBackToLobby;
 
 
 	UPROPERTY(EditAnywhere) FTimerHandle startBattleTimer;
@@ -29,6 +30,9 @@ class ABattleGameModeBase : public AMultyGameModeBase
 
 	UPROPERTY(EditAnywhere) bool roundEnded = false;
 	
+	UPROPERTY(EditAnywhere) float timeBeforeSwitch = 5.0f;
+	FTimerHandle timerSwitchLevel;
+
 public:	
 	ABattleGameModeBase();
 
@@ -45,6 +49,9 @@ protected:
 	void StartBattle();
 	void EndBattle();
 	void FreeForBattle();
+
+	int GetCountPlayerAlive(TObjectPtr<APlayerCharacter>& _lastPlayerStanding);
+	bool AddPlayerPoint(TObjectPtr<APlayerCharacter> _lastPlayerStanding);
 
 	UFUNCTION() void DeathPlayer(APlayerCharacter* _player);
 

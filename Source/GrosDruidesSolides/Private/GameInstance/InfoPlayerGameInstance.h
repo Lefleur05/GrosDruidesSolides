@@ -9,6 +9,8 @@
 #define GA_GAME_KEY "0cb20cc20cd456fc8a409f0e9047d064"
 #define GA_SECRET_KEY "5424a77773f94792b9567d6fd5bc580775240950"
 
+class USoundBase;
+
 USTRUCT()
 struct FLevelInfo
 {
@@ -29,6 +31,11 @@ public:
 		map = _map;
 		allSpawnPoint = _allSpawnPoint;
 	}
+	
+	bool operator == (const FLevelInfo& _other) const
+	{
+		return map == _other.map;
+	}
 };
 
 UCLASS()
@@ -39,9 +46,24 @@ class UInfoPlayerGameInstance : public UGameInstance
 	UPROPERTY(EditAnywhere) int lobbyPlayerCount = 0;
 
 	UPROPERTY(EditAnywhere)FLevelInfo carrouselMap = FLevelInfo("SLVL_CarrouselOnline");
+
+	UPROPERTY(EditAnywhere)FLevelInfo previousMap;
 	UPROPERTY(EditAnywhere)TArray<FLevelInfo> allBattleMap;
 
 	UPROPERTY(EditAnywhere)TMap<FString,int> pointPerPlayer;
+
+	UPROPERTY(EditAnywhere) bool isLocal = false;
+
+	//Musique
+	UPROPERTY(EditAnywhere)TObjectPtr<USoundBase> mainMenuMusique = nullptr;
+	UPROPERTY(EditAnywhere)TArray<TObjectPtr<USoundBase>> allBattleMusique = TArray<TObjectPtr<USoundBase>>();
+	UPROPERTY(EditAnywhere)TObjectPtr<USoundBase>allCarrouselMusique = nullptr;
+	FTimerHandle startMusique;
+	UPROPERTY(Editanywhere) float musicVolume = 0.2f;
+	UPROPERTY(Editanywhere) bool musicIsPaused = false;
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)TObjectPtr<UAudioComponent> currentAudio = nullptr;
 
 public:
 	FORCEINLINE void SetLobbyPlayerCount(int _lobbyPlayerCount) { lobbyPlayerCount = _lobbyPlayerCount; }
@@ -52,10 +74,21 @@ public:
 	FORCEINLINE TArray<FLevelInfo> GetAllBattleMap() { return allBattleMap; }
 	FORCEINLINE TMap<FString, int> GetPointPerPlayer() { return pointPerPlayer; }
 
+protected:
+	virtual void Init() override;
+	virtual void OnStart() override;
+
+	void PlayRandomBattleMusique();
+
+public:
+	void ResetPointForAllPlayer();
 	FLevelInfo FindLevelInfoWithLevelName(FString _levelName);
 
-	void ResetPointForAllPlayer();
+	UFUNCTION(BlueprintCallable) void SetCurrentAudioVolume(float _volume);
 
-	virtual void Init() override;
+	FString GetRandomLevel();
+	FString GoToLobby();
+
+
 	
 };
